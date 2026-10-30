@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 영상 슬롯머신 - What If?</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@700;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Nanum Gothic', sans-serif;
+            background-color: #000000;
+            user-select: none;
+            overflow: hidden;
+            margin: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .glitch {
+            position: relative;
+            color: #fbbf24;
+            font-weight: 800;
+            text-shadow: 2px 2px 0px #b45309, -2px -2px 0px #fef3c7;
+            animation: glitch-anim 1.5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        .reel-window {
+            overflow: hidden;
+            position: relative;
+            background: #291b11;
+            border-radius: 12px;
+            border: 2px solid #d97706;
+        }
+
+        .reel-strip {
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.1s linear;
+        }
+
+        .reel-item {
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fef3c7;
+            text-align: center;
+            padding: 0 10px;
+            box-sizing: border-box;
+            border-bottom: 1px solid rgba(217, 119, 6, 0.3);
+        }
+
+        @keyframes slideRightAndIn {
+            0%, 20% { right: 0px; }
+            45%, 75% { right: -410px; }
+            100% { right: 0px; }
+        }
+
+        .slide-banner {
+            animation: slideRightAndIn 6s infinite ease-in-out;
+        }
+
+        .turntable-off {
+            filter: grayscale(100%) opacity(0.5);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+
+    <audio id="bgmAudio" src="bgm.mp3" preload="auto" loop></audio>
+
+    <div class="absolute z-30 pointer-events-none" style="left: 350px; top: 400px; width: 200px; height: 200px;">
+        <img src="incredible.png" alt="New Image" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='https://placehold.co/200x200/d97706/ffffff?text=JPEG+IMAGE';">
+    </div>
+
+    <div class="absolute left-40 bottom-0 w-48 h-32 md:w-64 md:h-40 overflow-hidden z-20 pointer-events-none">
+        <video id="bgLoopVideo" class="w-full h-full object-cover rounded-2xl" autoplay muted loop playsinline>
+            <source src="bg_loop.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <div class="absolute z-30 pointer-events-none overflow-hidden rounded-2xl" style="left: 1310px; top: 89.5%; transform: translateY(-50%); width: 256px; height: 160px;">
+    <video class="w-full h-full object-cover" autoplay muted loop playsinline>
+        <source src="ai_peace.mp4" type="video/mp4">
+        브라우저가 비디오 재생을 지원하지 않습니다.
+    </video>
+</div>
+
+    <div class="absolute z-40 pointer-events-none" style="left: 1300px; top: 90%; transform: translateY(-50%); width: 320px; height: 320px;">
+    <img src="tv.png" alt="TV Frame" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='https://placehold.co/256x160/271c19/fbbf24?text=TV+FRAME';">
+</div>
+
+    <div id="customPositionGif" class="absolute z-30 pointer-events-none select-none" style="width: 200px; height: 200px; left: 1500px; top: 70px;">
+        <img src="dance-cat.gif" alt="Custom GIF Asset" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='https://placehold.co/120x120/d97706/ffffff?text=CUSTOM+GIF';">
+    </div>
+
+    <div id="newTopLeftGif" class="absolute z-30 pointer-events-none select-none" style="width: 300px; height: 300px; left: 20px; top: 20px; transform: rotate(90deg);">
+        <img src="dance.gif" alt="New GIF Asset" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='https://placehold.co/120x120/d97706/ffffff?text=NEW+GIF';">
+    </div>
+
+    <div class="absolute bottom-50 right-0 z-30 pointer-events-none slide-banner flex items-center justify-center" style="width: 400px; height: 400px;">
+        <img src="thumbs.png" alt="Thumb Up" class="w-full h-full object-contain drop-shadow-2xl">
+    </div>
+
+    <div id="turntable" class="absolute z-40 cursor-pointer select-none flex flex-col items-center justify-center transition transform hover:scale-105" 
+         style="width: 140px; height: 160px; left: 600px; top: 400px;" 
+         onclick="toggleBgm()" title="클릭하여 BGM 켜기/끄기">
+        <img id="lpImg" src="LP_static.png" alt="TurnTable LP" class="w-full h-full object-contain drop-shadow-2xl turntable-off">
+        <span id="bgmStatusText" class="text-xs text-[#fef3c7] mt-1 bg-black/70 px-2 py-0.5 rounded-md border border-amber-500/30 font-semibold shadow whitespace-nowrap">BGM OFF (클릭)</span>
+    </div>
+
+    <main class="relative flex items-center justify-center p-4 z-10">
+        <div id="slotMachineBody" class="relative w-[1000px] h-[800px] bg-transparent rounded-3xl flex items-center justify-center overflow-hidden">
+            <img id="customMachineImg" src="slot-machine.png" alt="Slot Machine" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-10" onerror="this.classList.add('hidden'); document.getElementById('defaultMachinePlaceholder').classList.remove('hidden');">
+
+            <div id="defaultMachinePlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#4e342e] to-[#271c19] z-0 hidden">
+                <div class="text-[#fbbf24] font-bold tracking-widest text-lg mb-2">[ SLOT MACHINE FRAME ]</div>
+                <div class="text-[#d7ccc8] text-xs">slot-machine.png 이미지를 추가하면 화면에 맞춰 표시됩니다.</div>
+            </div>
+
+            <div id="slotScreenArea" class="absolute flex flex-col items-center justify-center z-20 shadow-inner rounded-xl bg-[#1c120e] p-4"
+                 style="left: 50%; top: 43.5%; width: 230px; height: 155px; transform: translate(-50%, -50%);">
+                <div class="glitch text-2xl md:text-3xl tracking-wider mb-2 select-none">What If?</div>
+                <div class="text-[#fef3c7] text-xs tracking-widest animate-pulse font-semibold">PULL THE LEVER TO START</div>
+            </div>
+        </div>
+    </main>
+
+    <div id="lever" class="absolute z-40 cursor-pointer select-none flex flex-col items-center justify-center" 
+         style="width: 100px; height: 300px; left: 200px; top: 200px;" 
+         onclick="pullLever()">
+        <img id="leverImg1" src="lever1.png" alt="Lever 1" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='https://placehold.co/96x320/d97706/ffffff?text=Lever+1';">
+        <img id="leverImg2" src="lever2.png" alt="Lever 2" class="w-full h-full object-contain hidden" onerror="this.onerror=null; this.src='https://placehold.co/96x320/78350f/ffffff?text=Lever+2';">
+    </div>
+
+    <div id="floatingObject" class="absolute z-40 cursor-pointer select-none" style="width: 120px; height: 120px; left: 50px; top: 50px;" onclick="playFloatingSound()">
+        <img src="floating_img.png" alt="Floating Asset" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='https://placehold.co/120x120/fbbf24/3e2723?text=FLOAT';">
+    </div>
+
+    <div id="modalOverlay" class="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        
+        <div id="modalReelContainer" class="flex flex-col items-center w-full max-w-4xl px-4">
+            <h2 class="glitch text-3xl md:text-5xl mb-8 tracking-widest text-center">과연 어떤 일이 벌어질까?</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full bg-[#3e2723] p-6 rounded-3xl border-4 border-[#d97706] shadow-2xl">
+                <div class="reel-window h-36"><div id="reel1" class="reel-strip"></div></div>
+                <div class="reel-window h-36"><div id="reel2" class="reel-strip"></div></div>
+                <div class="reel-window h-36"><div id="reel3" class="reel-strip"></div></div>
+            </div>
+
+            <div id="statusText" class="mt-8 text-xl text-[#fef3c7] font-semibold tracking-wider animate-pulse">
+                릴이 돌아가는 중입니다... (1번 릴 멈추는 중)
+            </div>
+        </div>
+
+        <div id="resultContainer" class="hidden flex flex-col items-center w-full max-w-5xl px-4">
+            <div id="completedSentence" class="text-xl md:text-3xl font-extrabold text-[#fef3c7] tracking-wider bg-[#3e2723]/90 px-8 py-4 rounded-2xl border-2 border-[#d97706] shadow-2xl text-center mb-6 whitespace-nowrap">
+            </div>
+
+            <div class="relative w-full aspect-video bg-[#1c120e] max-w-3xl rounded-2xl border-4 border-[#d97706] overflow-hidden shadow-2xl mb-6 mx-auto">
+                <video id="aiVideoPlayer" class="w-full h-full object-cover" autoplay playsinline>
+                    <source src="video1.mp4" type="video/mp4">
+                    브라우저가 비디오 재생을 지원하지 않습니다.
+                </video>
+            </div>
+
+            <button onclick="resetSlotMachine()" class="bg-[#d97706] hover:bg-[#b45309] text-white font-bold px-8 py-3 rounded-2xl shadow-2xl transition transform hover:scale-105 border border-[#fef3c7]">
+                🔄 슬롯머신 다시 돌리기
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        let isBgmPlaying = false; 
+        let wasBgmPlayingBeforeSpin = false; 
+
+        function playFloatingSound() {
+        // 'floating_sound.mp3' 부분을 준비하신 mp3 파일 이름으로 변경해 주세요!
+         const sound = new Audio('floating_sound.mp3'); 
+        sound.play().catch(e => console.log("사운드 재생 실패:", e));
+        }
+
+        function toggleBgm() {
+            const bgm = document.getElementById('bgmAudio');
+            const lpImg = document.getElementById('lpImg');
+            const statusText = document.getElementById('bgmStatusText');
+
+            if (isBgmPlaying) {
+                bgm.pause();
+                isBgmPlaying = false;
+                lpImg.src = "LP_static.png";
+                lpImg.classList.add('turntable-off');
+                statusText.innerText = "BGM OFF (클릭)";
+            } else {
+                bgm.play().then(() => {
+                    isBgmPlaying = true;
+                    lpImg.src = "LP.gif";
+                    lpImg.classList.remove('turntable-off');
+                    statusText.innerText = "BGM ON (재생중)";
+                }).catch(e => console.log(e));
+            }
+        }
+
+        const floatingObj = { element: document.getElementById('floatingObject'), x: 100, y: 100, vx: 2.0, vy: 1.5, rotation: 0, vRot: 1.5, width: 120, height: 120 };
+        const leverObj = { element: document.getElementById('lever'), x: 300, y: 200, vx: -1, vy: 1, rotation: 0, vRot: -0.5, width: 150, height: 350 };
+        const turntableObj = { element: document.getElementById('turntable'), x: 500, y: 300, vx: 1.2, vy: -1.2, rotation: 0, vRot: 0.8, width: 140, height: 160 };
+
+        function updateFloatingPhysics() {
+            const modal = document.getElementById('modalOverlay');
+            if (modal.style.opacity !== '1') {
+                const screenW = window.innerWidth;
+                const screenH = window.innerHeight;
+
+                [floatingObj, leverObj, turntableObj].forEach(obj => {
+                    obj.x += obj.vx; obj.y += obj.vy; obj.rotation += obj.vRot;
+                    if (obj.x <= 0 || obj.x + obj.width >= screenW) { obj.vx *= -1; obj.vRot *= -1; }
+                    if (obj.y <= 0 || obj.y + obj.height >= screenH) { obj.vy *= -1; obj.vRot *= -1; }
+                    obj.element.style.left = obj.x + 'px';
+                    obj.element.style.top = obj.y + 'px';
+                    obj.element.style.transform = `rotate(${obj.rotation}deg)`;
+                });
+            }
+            requestAnimationFrame(updateFloatingPhysics);
+        }
+
+        window.onload = () => {
+            requestAnimationFrame(updateFloatingPhysics);
+            const bgVideo = document.getElementById('bgLoopVideo');
+            if (bgVideo) bgVideo.play().catch(() => {});
+        };
+
+        // 🌟 1단계: 새로운 항목들 추가하기
+        const reelData = [
+            ["조선시대 양반", "우주비행사", "고양이", "로봇", "호날두"],    
+            ["클럽에서", "운석을 피하며", "무인도에서", "외계인과", "헬스장에서"],       
+            ["댄스 배틀", "오열하기", "치킨 먹기", "세레머니하기", "포징하기"]             
+        ];
+
+        // 🌟 2단계: '나오게 하고 싶은 특정 조합들'의 인덱스 목록 지정 (화이트리스트)
+        // [1번릴 인덱스, 2번릴 인덱스, 3번릴 인덱스] 형태로 원하는 조합만 등록해 두세요!
+        const allowedCombinations = [
+            [0, 0, 1],
+            [2, 1, 1],
+            [4, 3, 3],
+            [2, 3, 0],
+            [4, 2, 2],
+            [3, 1, 4],
+            [2, 4, 4],
+            [1, 3, 0],
+            [0, 3, 2],
+            [1, 4, 3],
+            [3, 0, 0],
+            [4, 2, 1]
+
+            // 여기에 원하는 조합을 계속 추가할 수 있습니다.
+        ];
+
+        // 🌟 중복 방지를 위한 남은 조합 추적용 배열
+        let remainingCombinations = [];
+
+        // 🌟 조합 풀을 초기화하거나 채워주는 함수
+        function resetCombinationPool() {
+            // allowedCombinations의 복사본을 만들어 섞거나 그대로 넣어줍니다.
+            remainingCombinations = [...allowedCombinations];
+        }
+
+        // 페이지 처음 켤 때 풀 초기화
+        resetCombinationPool();
+
+        let isSpinning = false;
+
+        function pullLever() {
+            if (isSpinning) return;
+            isSpinning = true;
+
+            const bgm = document.getElementById('bgmAudio');
+            const lpImg = document.getElementById('lpImg');
+            const statusText = document.getElementById('bgmStatusText');
+
+            wasBgmPlayingBeforeSpin = isBgmPlaying; 
+            if (isBgmPlaying) {
+                bgm.pause();
+                isBgmPlaying = false;
+                lpImg.src = "LP_static.png";
+                lpImg.classList.add('turntable-off');
+                statusText.innerText = "BGM OFF (잠시 멈춤)";
+            }
+
+            document.getElementById('leverImg1').classList.add('hidden');
+            document.getElementById('leverImg2').classList.remove('hidden');
+
+            setTimeout(() => { openSlotModalAndSpin(); }, 300);
+        }
+
+        function openSlotModalAndSpin() {
+            const modal = document.getElementById('modalOverlay');
+            const reelContainer = document.getElementById('modalReelContainer');
+            const resultContainer = document.getElementById('resultContainer');
+            
+            resultContainer.classList.add('hidden');
+            reelContainer.classList.remove('hidden');
+            modal.style.opacity = '1';
+            modal.style.pointerEvents = 'auto';
+
+            // 🌟 만약 모든 조합을 다 봤다면(배열이 비었다면) 자동으로 리셋하여 다시 처음부터 순환!
+            if (remainingCombinations.length === 0) {
+                resetCombinationPool();
+                console.log("모든 영상을 다 보셨습니다! 조합 리스트가 초기화되어 다시 처음부터 시작합니다.");
+            }
+
+            // 🌟 남은 조합 중 랜덤으로 하나를 뽑고, 뽑힌 조합은 배열에서 삭제 (splice)
+            const randomIndex = Math.floor(Math.random() * remainingCombinations.length);
+            const resultIndices = remainingCombinations.splice(randomIndex, 1)[0];
+
+            playSlotSound();
+
+            spinReel(1, resultIndices[0], () => {
+                document.getElementById('statusText').innerText = "1번 릴 고정! 2번 릴 멈추는 중...";
+                playSlotSound();
+
+                spinReel(2, resultIndices[1], () => {
+                    document.getElementById('statusText').innerText = "2번 릴 고정! 3번 릴 멈추는 중...";
+                    playSlotSound();
+
+                    spinReel(3, resultIndices[2], () => {
+                        document.getElementById('statusText').innerText = "모든 릴 완성! AI 영상 로딩 중...";
+                        
+                        setTimeout(() => {
+                            showAiVideoResult(resultIndices);
+                        }, 1200);
+                    });
+                });
+            });
+        }
+
+        function playSlotSound() { const s = new Audio('slot_sound.mp3'); s.play().catch(e => {}); }
+        function playTadaSound() { const s = new Audio('tada.mp3'); s.play().catch(e => {}); }
+
+        function spinReel(reelNumber, targetIndex, callback) {
+            const strip = document.getElementById(`reel${reelNumber}`);
+            let speed = 50;
+            let counter = 0;
+            const totalLoops = 10 + (reelNumber * 5);
+            const itemCount = reelData[reelNumber - 1].length;
+
+            let itemsHtml = '';
+            for (let i = 0; i < 15; i++) {
+                itemsHtml += `<div class="reel-item">${reelData[reelNumber - 1][i % itemCount]}</div>`;
+            }
+            strip.innerHTML = itemsHtml;
+
+            const interval = setInterval(() => {
+                counter++;
+                strip.style.transform = `translateY(-${(counter * 100) % (itemCount * 100)}px)`;
+
+                if (counter >= totalLoops) {
+                    clearInterval(interval);
+                    strip.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1)';
+                    strip.style.transform = `translateY(-${targetIndex * 100}px)`;
+                    if (callback) callback();
+                }
+            }, speed);
+        }
+
+        function showAiVideoResult(indices) {
+            const reelContainer = document.getElementById('modalReelContainer');
+            const resultContainer = document.getElementById('resultContainer');
+            const sentenceEl = document.getElementById('completedSentence');
+            const videoPlayer = document.getElementById('aiVideoPlayer');
+
+            const part1 = reelData[0][indices[0]];
+            const part2 = reelData[1][indices[1]];
+            const part3 = reelData[2][indices[2]];
+            sentenceEl.innerText = `✨ "${part1} + ${part2} + ${part3}" ✨`;
+
+            reelContainer.classList.add('hidden');
+            resultContainer.classList.remove('hidden');
+
+            playTadaSound();
+
+            // 🌟 항목을 추가해도 번호가 변하지 않는 고정 자릿수 계산식!
+            const videoIndex = indices[0] * 100 + indices[1] * 10 + indices[2] + 1;
+            videoPlayer.src = `video${videoIndex}.mp4`;
+
+            videoPlayer.currentTime = 0;
+            videoPlayer.play().catch(e => {
+                videoPlayer.src = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4";
+                videoPlayer.play();
+            });
+        }
+        function resetSlotMachine() {
+            const modal = document.getElementById('modalOverlay');
+            const videoPlayer = document.getElementById('aiVideoPlayer');
+            
+            videoPlayer.pause();
+            modal.style.opacity = '0';
+            modal.style.pointerEvents = 'none';
+            isSpinning = false;
+
+            document.getElementById('leverImg1').classList.remove('hidden');
+            document.getElementById('leverImg2').classList.add('hidden');
+
+            const bgm = document.getElementById('bgmAudio');
+            const lpImg = document.getElementById('lpImg');
+            const statusText = document.getElementById('bgmStatusText');
+
+            if (wasBgmPlayingBeforeSpin) {
+                bgm.play().then(() => {
+                    isBgmPlaying = true;
+                    lpImg.src = "LP.gif";
+                    lpImg.classList.remove('turntable-off');
+                    statusText.innerText = "BGM ON (재생중)";
+                }).catch(e => console.log(e));
+            }
+        }
+    </script>
+</body>
+</html>
