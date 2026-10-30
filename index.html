@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 영상 슬롯머신 - What If?</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Nanum Gothic for Korean support -->
+    <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@700;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Nanum Gothic', sans-serif;
+            background-color: #000000;
+            user-select: none;
+            overflow: hidden; /* 스크롤바 방지 */
+            margin: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Glitch Effect for 'What If?' - Gold/White tone */
+        .glitch {
+            position: relative;
+            color: #fbbf24; /* Gold */
+            font-weight: 800;
+            text-shadow: 2px 2px 0px #b45309, -2px -2px 0px #fef3c7;
+            animation: glitch-anim 1.5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        /* Slot Reel Smooth Scroll Animation Container */
+        .reel-window {
+            overflow: hidden;
+            position: relative;
+            background: #291b11; /* Dark Brown */
+            border-radius: 12px;
+            border: 2px solid #d97706; /* Gold border */
+        }
+
+        .reel-strip {
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.1s linear;
+        }
+
+        .reel-item {
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fef3c7; /* Gold/White text */
+            text-align: center;
+            padding: 0 10px;
+            box-sizing: border-box;
+            border-bottom: 1px solid rgba(217, 119, 6, 0.3);
+        }
+
+        /* 🌟 우측 이미지 슬라이드 왕복 애니메이션 */
+        @keyframes slideRightAndIn {
+            0%, 20% {
+                right: 0px; 
+            }
+            45%, 75% {
+                right: -410px; 
+            }
+            100% {
+                right: 0px; 
+            }
+        }
+
+        .slide-banner {
+            animation: slideRightAndIn 6s infinite ease-in-out;
+        }
+
+        /* 턴테이블이 꺼졌을 때(음악 멈춤) 시각적 효과 (흑백 + 투명도) */
+        .turntable-off {
+            filter: grayscale(100%) opacity(0.5);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+
+    <!-- 🌟 BGM 오디오 플레이어 (숨김 처리, 무한 반복) -->
+    <audio id="bgmAudio" src="bgm.mp3" preload="auto" loop></audio>
+
+    <!-- 🌟 좌측 하단 고정 반복 재생 비디오 영역 (외곽선/배경 없음) -->
+    <div class="absolute left-40 bottom-0 w-48 h-32 md:w-64 md:h-40 overflow-hidden z-20 pointer-events-none">
+        <video id="bgLoopVideo" class="w-full h-full object-cover rounded-2xl" autoplay muted loop playsinline>
+            <source src="bg_loop.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <!-- 🌟 화면 오른쪽 왕복 슬라이드 기존 이미지 영역 (thumbs.png) -->
+    <div class="absolute bottom-50 right-0 z-30 pointer-events-none slide-banner flex items-center justify-center" style="width: 400px; height: 400px;">
+        <img src="thumbs.png" alt="Thumb Up" class="w-full h-full object-contain drop-shadow-2xl">
+    </div>
+
+    <!-- 🌟 우측 하단 고정 LP 턴테이블 오브젝트 (클릭 가능, BGM 토글 제어) -->
+    <div id="turntable" class="absolute z-40 cursor-pointer select-none flex flex-col items-center justify-center transition transform hover:scale-105" 
+         style="width: 140px; height: 160px; left: 600px; top: 400px;" 
+         onclick="toggleBgm()" title="클릭하여 BGM 켜기/끄기">
+        <img id="lpImg" src="LP_static.png" alt="TurnTable LP" class="w-full h-full object-contain drop-shadow-2xl turntable-off">
+        <span id="bgmStatusText" class="text-xs text-[#fef3c7] mt-1 bg-black/70 px-2 py-0.5 rounded-md border border-amber-500/30 font-semibold shadow whitespace-nowrap">BGM OFF (클릭)</span>
+    </div>
+
+    <!-- 메인 슬롯머신 컨테이너 (제자리에 고정) -->
+    <main class="relative flex items-center justify-center p-4 z-10">
+        
+        <!-- 슬롯머신 본체 -->
+        <div id="slotMachineBody" class="relative w-[1000px] h-[800px] bg-transparent rounded-3xl flex items-center justify-center overflow-hidden">
+            
+            <!-- 슬롯머신 사용자 커스텀 이미지 -->
+            <img id="customMachineImg" src="slot-machine.png" alt="Slot Machine" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-10" onerror="this.classList.add('hidden'); document.getElementById('defaultMachinePlaceholder').classList.remove('hidden');">
+
+            <!-- 슬롯머신 기본 플레이스홀더 디자인 -->
+            <div id="defaultMachinePlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#4e342e] to-[#271c19] z-0 hidden">
+                <div class="text-[#fbbf24] font-bold tracking-widest text-lg mb-2">[ SLOT MACHINE FRAME ]</div>
+                <div class="text-[#d7ccc8] text-xs">slot-machine.png 이미지를 추가하면 화면에 맞춰 표시됩니다.</div>
+            </div>
+
+            <!-- 슬롯머신 화면 영역 -->
+            <div id="slotScreenArea" class="absolute flex flex-col items-center justify-center z-20 shadow-inner rounded-xl bg-[#1c120e] p-4"
+                 style="left: 50%; top: 43.5%; width: 230px; height: 155px; transform: translate(-50%, -50%);">
+                
+                <div class="glitch text-2xl md:text-3xl tracking-wider mb-2 select-none">
+                    What If?
+                </div>
+                
+                <div class="text-[#fef3c7] text-xs tracking-widest animate-pulse font-semibold">
+                    PULL THE LEVER TO START
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 🌟 떠다니며 회전하는 레버 오브젝트 -->
+    <div id="lever" class="absolute z-30 cursor-pointer select-none flex flex-col items-center justify-center" 
+         style="width: 100px; height: 300px; left: 200px; top: 200px;" 
+         onclick="pullLever()">
+        
+        <img id="leverImg1" src="lever1.png" alt="Lever 1" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='https://placehold.co/96x320/d97706/ffffff?text=Lever+1';">
+        <img id="leverImg2" src="lever2.png" alt="Lever 2" class="w-full h-full object-contain hidden" onerror="this.onerror=null; this.src='https://placehold.co/96x320/78350f/ffffff?text=Lever+2';">
+    </div>
+
+    <!-- 🌟 떠다니며 회전하는 추가 이미지 오브젝트 -->
+    <div id="floatingObject" class="absolute z-40 pointer-events-none" style="width: 120px; height: 120px; left: 50px; top: 50px;">
+        <img src="floating_img.png" alt="Floating Asset" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='https://placehold.co/120x120/fbbf24/3e2723?text=FLOAT';">
+    </div>
+
+    <!-- 레버 당겼을 때 나타나는 모달창 (릴 회전 및 결과 창 겸용) -->
+    <div id="modalOverlay" class="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        
+        <!-- 단계 1: 확대된 릴 회전 영역 -->
+        <div id="modalReelContainer" class="flex flex-col items-center w-full max-w-4xl px-4">
+            <h2 class="glitch text-3xl md:text-5xl mb-8 tracking-widest text-center">What If? Slot Machine</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full bg-[#3e2723] p-6 rounded-3xl border-4 border-[#d97706] shadow-2xl">
+                <!-- 1번 릴 (3개) -->
+                <div class="reel-window h-36">
+                    <div id="reel1" class="reel-strip">
+                        <div class="reel-item">조선시대 양반</div>
+                        <div class="reel-item">우주비행사</div>
+                        <div class="reel-item">고양이</div>
+                    </div>
+                </div>
+                <!-- 2번 릴 (2개) -->
+                <div class="reel-window h-36">
+                    <div id="reel2" class="reel-strip">
+                        <div class="reel-item">클럽에서</div>
+                        <div class="reel-item">운석을 피하며</div>
+                    </div>
+                </div>
+                <!-- 3번 릴 (2개) -->
+                <div class="reel-window h-36">
+                    <div id="reel3" class="reel-strip">
+                        <div class="reel-item">댄스 배틀</div>
+                        <div class="reel-item">오열하기</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="statusText" class="mt-8 text-xl text-[#fef3c7] font-semibold tracking-wider animate-pulse">
+                릴이 돌아가는 중입니다... (1번 릴 멈추는 중)
+            </div>
+        </div>
+
+        <!-- 🌟 단계 2: 확장된 비디오 창과 원래 크기의 문장이 나오는 결과 영역 (max-w-3xl로 키움) -->
+        <div id="resultContainer" class="hidden flex flex-col items-center w-full max-w-6xl px-4">
+            <!-- 완성된 문장 (원래 크기 text-3xl md:text-5xl로 복구) -->
+            <div id="completedSentence" class="text-8x2 font-extrabold text-[#fef3c7] tracking-wider bg-[#3e2723]/90 px-8 py-4 rounded-2xl border-2 border-[#d97706] shadow-2xl text-center mb-6">
+            </div>
+
+            <!-- 비디오 재생 박스 (max-w-3xl에 맞춰 큼직하게 출력) -->
+            <div class="relative w-full aspect-video bg-[#1c120e] rounded-2xl border-4 border-[#d97706] overflow-hidden shadow-2xl mb-6">
+                <video id="aiVideoPlayer" class="w-full h-full object-cover" autoplay playsinline>
+                    <source src="video1.mp4" type="video/mp4">
+                    브라우저가 비디오 재생을 지원하지 않습니다.
+                </video>
+            </div>
+
+            <!-- 다시 돌리기 버튼 -->
+            <button onclick="resetSlotMachine()" class="bg-[#d97706] hover:bg-[#b45309] text-white font-bold px-8 py-3 rounded-2xl shadow-2xl transition transform hover:scale-105 border border-[#fef3c7]">
+                🔄 슬롯머신 다시 돌리기
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- BGM 제어 관련 변수 ---
+        let isBgmPlaying = false; 
+        let wasBgmPlayingBeforeSpin = false; 
+
+        function toggleBgm() {
+            const bgm = document.getElementById('bgmAudio');
+            const lpImg = document.getElementById('lpImg');
+            const statusText = document.getElementById('bgmStatusText');
+
+            if (isBgmPlaying) {
+                bgm.pause();
+                isBgmPlaying = false;
+                lpImg.src = "LP_static.png";
+                lpImg.classList.add('turntable-off');
+                statusText.innerText = "BGM OFF (클릭)";
+            } else {
+                bgm.play().then(() => {
+                    isBgmPlaying = true;
+                    lpImg.src = "LP.gif";
+                    lpImg.classList.remove('turntable-off');
+                    statusText.innerText = "BGM ON (재생중)";
+                }).catch(e => {
+                    console.log("자동 재생 정책 또는 오디오 파일 오류", e);
+                });
+            }
+        }
+
+        // --- 1. 추가 이미지 물리 및 회전 로직 ---
+        const floatingObj = {
+            element: document.getElementById('floatingObject'),
+            x: 100, y: 100,
+            vx: 2.0, vy: 1.5,
+            rotation: 0,
+            vRot: 1.5,
+            width: 120, height: 120
+        };
+
+        // --- 2. 레버 물리 및 회전 로직 추가 ---
+        const leverObj = {
+            element: document.getElementById('lever'),
+            x: 300, y: 200,
+            vx: -1, vy: 1, 
+            rotation: 0,
+            vRot: -0.5,        
+            width: 150, height: 350
+        };
+
+        // --- 3. 턴테이블 물리 및 회전 로직 추가 ---
+        const turntableObj = {
+            element: document.getElementById('turntable'),
+            x: 500, y: 300,
+            vx: 1.2, vy: -1.2,
+            rotation: 0,
+            vRot: 0.8,
+            width: 140, height: 160
+        };
+
+        function updateFloatingPhysics() {
+            const modal = document.getElementById('modalOverlay');
+            if (modal.style.opacity !== '1') {
+                const screenW = window.innerWidth;
+                const screenH = window.innerHeight;
+
+                // [추가 이미지 움직임 및 회전]
+                floatingObj.x += floatingObj.vx;
+                floatingObj.y += floatingObj.vy;
+                floatingObj.rotation += floatingObj.vRot;
+
+                if (floatingObj.x <= 0 || floatingObj.x + floatingObj.width >= screenW) {
+                    floatingObj.vx *= -1;
+                    floatingObj.vRot *= -1;
+                    floatingObj.x = Math.max(0, Math.min(floatingObj.x, screenW - floatingObj.width));
+                }
+                if (floatingObj.y <= 0 || floatingObj.y + floatingObj.height >= screenH) {
+                    floatingObj.vy *= -1;
+                    floatingObj.vRot *= -1;
+                    floatingObj.y = Math.max(0, Math.min(floatingObj.y, screenH - floatingObj.height));
+                }
+                floatingObj.element.style.left = floatingObj.x + 'px';
+                floatingObj.element.style.top = floatingObj.y + 'px';
+                floatingObj.element.style.transform = `rotate(${floatingObj.rotation}deg)`;
+
+                // [레버 움직임 및 회전]
+                leverObj.x += leverObj.vx;
+                leverObj.y += leverObj.vy;
+                leverObj.rotation += leverObj.vRot;
+
+                if (leverObj.x <= 0 || leverObj.x + leverObj.width >= screenW) {
+                    leverObj.vx *= -1;
+                    leverObj.vRot *= -1;
+                    leverObj.x = Math.max(0, Math.min(leverObj.x, screenW - leverObj.width));
+                }
+                if (leverObj.y <= 0 || leverObj.y + leverObj.height >= screenH) {
+                    leverObj.vy *= -1;
+                    leverObj.vRot *= -1;
+                    leverObj.y = Math.max(0, Math.min(leverObj.y, screenH - leverObj.height));
+                }
+                leverObj.element.style.left = leverObj.x + 'px';
+                leverObj.element.style.top = leverObj.y + 'px';
+                leverObj.element.style.transform = `rotate(${leverObj.rotation}deg)`;
+
+                // [턴테이블 움직임 및 회전]
+                turntableObj.x += turntableObj.vx;
+                turntableObj.y += turntableObj.vy;
+                turntableObj.rotation += turntableObj.vRot;
+
+                if (turntableObj.x <= 0 || turntableObj.x + turntableObj.width >= screenW) {
+                    turntableObj.vx *= -1;
+                    turntableObj.vRot *= -1;
+                    turntableObj.x = Math.max(0, Math.min(turntableObj.x, screenW - turntableObj.width));
+                }
+                if (turntableObj.y <= 0 || turntableObj.y + turntableObj.height >= screenH) {
+                    turntableObj.vy *= -1;
+                    turntableObj.vRot *= -1;
+                    turntableObj.y = Math.max(0, Math.min(turntableObj.y, screenH - turntableObj.height));
+                }
+                turntableObj.element.style.left = turntableObj.x + 'px';
+                turntableObj.element.style.top = turntableObj.y + 'px';
+                turntableObj.element.style.transform = `rotate(${turntableObj.rotation}deg)`;
+            }
+
+            requestAnimationFrame(updateFloatingPhysics);
+        }
+
+        window.onload = () => {
+            floatingObj.x = Math.random() * (window.innerWidth - floatingObj.width);
+            floatingObj.y = Math.random() * (window.innerHeight - floatingObj.height);
+            floatingObj.rotation = Math.random() * 360;
+
+            leverObj.x = Math.random() * (window.innerWidth - leverObj.width);
+            leverObj.y = Math.random() * (window.innerHeight - leverObj.height);
+            leverObj.rotation = Math.random() * 360;
+
+            turntableObj.x = Math.random() * (window.innerWidth - turntableObj.width);
+            turntableObj.y = Math.random() * (window.innerHeight - turntableObj.height);
+            turntableObj.rotation = Math.random() * 360;
+
+            requestAnimationFrame(updateFloatingPhysics);
+
+            const bgVideo = document.getElementById('bgLoopVideo');
+            if (bgVideo) {
+                bgVideo.play().catch(() => {});
+            }
+        };
+
+        // --- 3x2x2 조합용 릴 데이터 설정 ---
+        const reelData = [
+            ["조선시대 양반", "우주비행사", "고양이"],    // 1번 릴 (3개)
+            ["클럽에서", "운석을 피하며"],             // 2번 릴 (2개)
+            ["댄스 배틀", "오열하기"]                  // 3번 릴 (2개)
+        ];
+
+        let isSpinning = false;
+
+        function pullLever() {
+            if (isSpinning) return;
+            isSpinning = true;
+
+            const bgm = document.getElementById('bgmAudio');
+            const lpImg = document.getElementById('lpImg');
+            const statusText = document.getElementById('bgmStatusText');
+
+            wasBgmPlayingBeforeSpin = isBgmPlaying; 
+            if (isBgmPlaying) {
+                bgm.pause();
+                isBgmPlaying = false;
+                lpImg.src = "LP_static.png";
+                lpImg.classList.add('turntable-off');
+                statusText.innerText = "BGM OFF (잠시 멈춤)";
+            }
+
+            const leverImg1 = document.getElementById('leverImg1');
+            const leverImg2 = document.getElementById('leverImg2');
+
+            leverImg1.classList.add('hidden');
+            leverImg2.classList.remove('hidden');
+
+            setTimeout(() => {
+                openSlotModalAndSpin();
+            }, 300);
+        }
+
+        function openSlotModalAndSpin() {
+            const modal = document.getElementById('modalOverlay');
+            const reelContainer = document.getElementById('modalReelContainer');
+            const resultContainer = document.getElementById('resultContainer');
+            
+            resultContainer.classList.add('hidden');
+            reelContainer.classList.remove('hidden');
+            modal.style.opacity = '1';
+            modal.style.pointerEvents = 'auto';
+
+            const resultIndices = [
+                Math.floor(Math.random() * 3), 
+                Math.floor(Math.random() * 2), 
+                Math.floor(Math.random() * 2)  
+            ];
+
+            playSlotSound();
+
+            spinReel(1, resultIndices[0], () => {
+                document.getElementById('statusText').innerText = "1번 릴 고정! 2번 릴 멈추는 중...";
+                
+                playSlotSound();
+
+                spinReel(2, resultIndices[1], () => {
+                    document.getElementById('statusText').innerText = "2번 릴 고정! 3번 릴 멈추는 중...";
+                    
+                    playSlotSound();
+
+                    spinReel(3, resultIndices[2], () => {
+                        document.getElementById('statusText').innerText = "모든 릴 완성! AI 영상 로딩 중...";
+                        
+                        setTimeout(() => {
+                            showAiVideoResult(resultIndices);
+                        }, 1200);
+                    });
+                });
+            });
+        }
+
+        function playSlotSound() {
+            const sound = new Audio('slot_sound.mp3');
+            sound.play().catch(e => {});
+        }
+
+        function playTadaSound() {
+            const sound = new Audio('tada.mp3');
+            sound.play().catch(e => {});
+        }
+
+        function spinReel(reelNumber, targetIndex, callback) {
+            const strip = document.getElementById(`reel${reelNumber}`);
+            let speed = 50;
+            let counter = 0;
+            const totalLoops = 10 + (reelNumber * 5);
+            const itemCount = reelData[reelNumber - 1].length;
+
+            let itemsHtml = '';
+            for (let i = 0; i < 15; i++) {
+                const itemText = reelData[reelNumber - 1][i % itemCount];
+                itemsHtml += `<div class="reel-item">${itemText}</div>`;
+            }
+            strip.innerHTML = itemsHtml;
+
+            const interval = setInterval(() => {
+                counter++;
+                strip.style.transform = `translateY(-${(counter * 100) % (itemCount * 100)}px)`;
+
+                if (counter >= totalLoops) {
+                    clearInterval(interval);
+                    strip.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1)';
+                    strip.style.transform = `translateY(-${targetIndex * 100}px)`;
+                    
+                    if (callback) callback();
+                }
+            }, speed);
+        }
+
+        function showAiVideoResult(indices) {
+            const reelContainer = document.getElementById('modalReelContainer');
+            const resultContainer = document.getElementById('resultContainer');
+            const sentenceEl = document.getElementById('completedSentence');
+            const videoPlayer = document.getElementById('aiVideoPlayer');
+
+            const part1 = reelData[0][indices[0]];
+            const part2 = reelData[1][indices[1]];
+            const part3 = reelData[2][indices[2]];
+            const combinedSentence = `✨ "${part1} + ${part2} + ${part3}" ✨`;
+
+            sentenceEl.innerText = combinedSentence;
+
+            reelContainer.classList.add('hidden');
+            resultContainer.classList.remove('hidden');
+
+            playTadaSound();
+
+            const videoIndex = indices[0] * 4 + indices[1] * 2 + indices[2] + 1;
+            videoPlayer.src = `video${videoIndex}.mp4`;
+
+            videoPlayer.currentTime = 0;
+            videoPlayer.play().catch(e => {
+                console.log("비디오 재생 대기 중 또는 파일 미존재", e);
+                videoPlayer.src = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4";
+                videoPlayer.play();
+            });
+        }
+
+        function resetSlotMachine() {
+            const modal = document.getElementById('modalOverlay');
+            const videoPlayer = document.getElementById('aiVideoPlayer');
+            const leverImg1 = document.getElementById('leverImg1');
+            const leverImg2 = document.getElementById('leverImg2');
+            
+            videoPlayer.pause();
+            
+            modal.style.opacity = '0';
+            modal.style.pointerEvents = 'none';
+            isSpinning = false;
+
+            leverImg1.classList.remove('hidden');
+            leverImg2.classList.add('hidden');
+
+            const bgm = document.getElementById('bgmAudio');
+            const lpImg = document.getElementById('lpImg');
+            const statusText = document.getElementById('bgmStatusText');
+
+            if (wasBgmPlayingBeforeSpin) {
+                bgm.play().then(() => {
+                    isBgmPlaying = true;
+                    lpImg.src = "LP.gif";
+                    lpImg.classList.remove('turntable-off');
+                    statusText.innerText = "BGM ON (재생중)";
+                }).catch(e => console.log(e));
+            }
+        }
+    </script>
+</body>
+</html>
